@@ -27,7 +27,7 @@ ASSETS := fonts/Inter-Regular.ttf=third_party/inter/Inter-Regular.ttf \
           $(foreach f,$(wildcard themes/neutral/*.conf themes/neutral/icons/*.png),$(patsubst themes/%,%,$(f))=$(f))
 ASSET_FILES := $(foreach a,$(ASSETS),$(word 2,$(subst =, ,$(a))))
 
-.PHONY: all clean run run-headless debug esp test
+.PHONY: all clean run run-window run-headless debug esp test
 
 all: $(TARGET)
 
@@ -76,7 +76,22 @@ $(BUILD)/OVMF_VARS.fd:
 	@mkdir -p $(BUILD)
 	cp $(OVMF_VARS) $@
 
+# Shows the VM in your browser: QEMU's VNC server (websocket on 5700) +
+# noVNC served on 6080. Open http://localhost:6080/vnc.html?autoconnect=1&port=5700
+NOVNC ?= /usr/share/novnc
 run: esp $(BUILD)/OVMF_VARS.fd
+	@test -d $(NOVNC) || { echo "noVNC not found at $(NOVNC) (apt install novnc)"; exit 1; }
+	@echo ""
+	@echo "  Shade is starting. Open this in your browser:"
+	@echo "    http://localhost:6080/vnc.html?autoconnect=1&resize=scale&port=5700"
+	@echo "  (Ctrl+C here to stop)"
+	@echo ""
+	@$(PYTHON) -m http.server 6080 --bind 127.0.0.1 --directory $(NOVNC) >/dev/null 2>&1 & \
+	  srv=$$!; trap "kill $$srv 2>/dev/null" EXIT INT TERM; \
+	  $(QEMU) $(QEMU_COMMON) -display none -vnc 127.0.0.1:0,websocket=5700
+
+# Native window, for hosts whose QEMU has a GTK/SDL display.
+run-window: esp $(BUILD)/OVMF_VARS.fd
 	$(QEMU) $(QEMU_COMMON)
 
 # Headless, with a monitor socket for screendump/sendkey (see tools/qemu-shot.py).

@@ -8,9 +8,11 @@
     "source=shadebootloader-claude,target=/home/vscode/.claude,type=volume",
     "source=shadebootloader-gh,target=/home/vscode/.config/gh,type=volume"
   ],
-  "forwardPorts": [1234],
+  "forwardPorts": [1234, 6080, 5700],
   "portsAttributes": {
-    "1234": { "label": "QEMU GDB stub", "onAutoForward": "silent" }
+    "1234": { "label": "QEMU GDB stub", "onAutoForward": "silent" },
+    "6080": { "label": "Shade VM (noVNC)", "onAutoForward": "openBrowser" },
+    "5700": { "label": "QEMU VNC websocket", "onAutoForward": "silent" }
   },
   "customizations": {
     "vscode": {
