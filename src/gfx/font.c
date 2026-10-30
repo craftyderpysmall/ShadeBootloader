@@ -8,6 +8,8 @@
 #define SUBPIXELS 4
 #define GLYPH_SLOTS 512   /* open-addressed, power of two */
 #define MAX_FACES 12
+#define ADV_SLOTS 512     /* cached advances, open-addressed by codepoint */
+#define KERN_SLOTS 2048   /* cached kerning pairs */
 
 typedef struct {
     int key;              /* codepoint * SUBPIXELS + subpixel, -1 = empty */
@@ -20,6 +22,8 @@ struct Face {
     float px, scale;
     float ascent, descent;
     Glyph glyphs[GLYPH_SLOTS];
+    struct { int cp; float adv; } advs[ADV_SLOTS];
+    struct { uint32_t pair; float kern; } kerns[KERN_SLOTS];
 };
 
 struct Font {
@@ -60,6 +64,10 @@ Face *font_face(Font *f, float px)
     face->descent = -desc * face->scale;
     for (int i = 0; i < GLYPH_SLOTS; i++)
         face->glyphs[i].key = -1;
+    for (int i = 0; i < ADV_SLOTS; i++)
+        face->advs[i].cp = -1;
+    for (int i = 0; i < KERN_SLOTS; i++)
+        face->kerns[i].pair = 0xffffffffu;
     if (f->nfaces < MAX_FACES)
         f->faces[f->nfaces++] = face;
     else
@@ -110,13 +118,51 @@ static int utf8_next(const char **s)
     return cp;
 }
 
-static float advance(Face *f, int cp, int next)
+/* stb_truetype walks cmap/hmtx/GPOS on every query; cache both lookups. */
+static float glyph_advance(Face *f, int cp)
 {
+    unsigned h = ((unsigned)cp * 2654435761u) & (ADV_SLOTS - 1);
+    for (int probe = 0; probe < ADV_SLOTS; probe++) {
+        unsigned i = (h + probe) & (ADV_SLOTS - 1);
+        if (f->advs[i].cp == cp)
+            return f->advs[i].adv;
+        if (f->advs[i].cp == -1) {
+            int adv, lsb;
+            stbtt_GetCodepointHMetrics(&f->font->info, cp, &adv, &lsb);
+            f->advs[i].cp = cp;
+            f->advs[i].adv = adv * f->scale;
+            return f->advs[i].adv;
+        }
+    }
     int adv, lsb;
     stbtt_GetCodepointHMetrics(&f->font->info, cp, &adv, &lsb);
-    float a = adv * f->scale;
+    return adv * f->scale;
+}
+
+static float pair_kern(Face *f, int a, int b)
+{
+    if (a > 0xffff || b > 0xffff)
+        return stbtt_GetCodepointKernAdvance(&f->font->info, a, b) * f->scale;
+    uint32_t pair = ((uint32_t)a << 16) | (uint32_t)b;
+    unsigned h = (pair * 2654435761u) & (KERN_SLOTS - 1);
+    for (int probe = 0; probe < 16; probe++) {
+        unsigned i = (h + probe) & (KERN_SLOTS - 1);
+        if (f->kerns[i].pair == pair)
+            return f->kerns[i].kern;
+        if (f->kerns[i].pair == 0xffffffffu) {
+            f->kerns[i].pair = pair;
+            f->kerns[i].kern = stbtt_GetCodepointKernAdvance(&f->font->info, a, b) * f->scale;
+            return f->kerns[i].kern;
+        }
+    }
+    return stbtt_GetCodepointKernAdvance(&f->font->info, a, b) * f->scale;
+}
+
+static float advance(Face *f, int cp, int next)
+{
+    float a = glyph_advance(f, cp);
     if (next)
-        a += stbtt_GetCodepointKernAdvance(&f->font->info, cp, next) * f->scale;
+        a += pair_kern(f, cp, next);
     return a;
 }
 
@@ -136,6 +182,9 @@ float text_draw(Canvas *c, Face *f, float x, float y, const char *s, Color col)
 {
     float start = x;
     int by = (int)floorf(y + 0.5f);
+    /* whole line outside the clip band: nothing to draw */
+    if (by - f->ascent - 2 > c->clip.y + c->clip.h || by + f->descent + 2 < c->clip.y)
+        return 0;
     uint32_t ca = COLOR_A(col), rgb = col & 0xffffff;
     while (*s) {
         int cp = utf8_next(&s);

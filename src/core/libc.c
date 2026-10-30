@@ -207,6 +207,7 @@ double ceil(double x)
 }
 
 float floorf(float x) { return (float)floor(x); }
+float roundf(float x) { return x < 0 ? -(float)floor(-x + 0.5) : (float)floor(x + 0.5); }
 float ceilf(float x) { return (float)ceil(x); }
 
 double fmod(double x, double y)

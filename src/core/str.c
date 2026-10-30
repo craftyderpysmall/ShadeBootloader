@@ -184,15 +184,15 @@ int str_vfmt(char *buf, size_t cap, const char *fmt, va_list ap)
             out_c(&o, (char)va_arg(ap, int));
             break;
         case 'd': case 'i': {
-            int64_t v = lng ? va_arg(ap, int64_t) : va_arg(ap, int);
+            int64_t v = lng >= 2 ? va_arg(ap, int64_t) : lng ? (int64_t)va_arg(ap, long) : va_arg(ap, int);
             out_num(&o, v < 0 ? (uint64_t)-v : (uint64_t)v, 10, false, v < 0, width, pad, left);
             break;
         }
         case 'u':
-            out_num(&o, lng ? va_arg(ap, uint64_t) : va_arg(ap, unsigned), 10, false, false, width, pad, left);
+            out_num(&o, lng >= 2 ? va_arg(ap, uint64_t) : lng ? (uint64_t)va_arg(ap, unsigned long) : va_arg(ap, unsigned), 10, false, false, width, pad, left);
             break;
         case 'x': case 'X':
-            out_num(&o, lng ? va_arg(ap, uint64_t) : va_arg(ap, unsigned), 16, *fmt == 'X', false, width, pad, left);
+            out_num(&o, lng >= 2 ? va_arg(ap, uint64_t) : lng ? (uint64_t)va_arg(ap, unsigned long) : va_arg(ap, unsigned), 16, *fmt == 'X', false, width, pad, left);
             break;
         case 'p':
             out_c(&o, '0'); out_c(&o, 'x');

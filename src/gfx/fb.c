@@ -8,6 +8,7 @@
 
 static EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
 static Canvas back;
+static uint32_t our_mode;
 
 static const Image *cursor_img;
 static int cursor_hx, cursor_hy, cursor_x, cursor_y;
@@ -78,6 +79,7 @@ bool fb_init(const char *resolution)
     int w = (int)gop->Mode->Info->HorizontalResolution;
     int h = (int)gop->Mode->Info->VerticalResolution;
     LOG("gop: %dx%d (mode %u of %u)", w, h, gop->Mode->Mode, gop->Mode->MaxMode);
+    our_mode = gop->Mode->Mode;
     back = canvas_alloc(w, h);
     return back.px != NULL;
 }
@@ -144,4 +146,11 @@ void fb_clear(Color col)
     cursor_on = false;
     fb_present(back.clip);
     cursor_on = was;
+}
+
+void fb_restore(void)
+{
+    if (gop && gop->Mode->Mode != our_mode)
+        gop->SetMode(gop, our_mode);
+    gST->ConOut->EnableCursor(gST->ConOut, FALSE);
 }

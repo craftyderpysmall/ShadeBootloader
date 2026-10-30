@@ -86,5 +86,6 @@ void    fb_set_cursor(const Image *img, int hot_x, int hot_y);
 void    fb_move_cursor(int x, int y, bool visible);  /* caller presents old/new rects */
 Rect    fb_cursor_rect(void);
 void    fb_clear(Color col);                         /* fill + present whole screen */
+void    fb_restore(void);                            /* re-apply our mode after a loader returns */
 
 #endif

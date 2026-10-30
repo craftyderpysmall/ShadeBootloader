@@ -19,4 +19,5 @@ float  ceilf(float x);
 float  fabsf(float x);
 float  powf(float x, float y);
 float  expf(float x);
+float  roundf(float x);
 #endif

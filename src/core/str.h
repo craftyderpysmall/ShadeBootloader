@@ -21,7 +21,7 @@ char *str_trim(char *s);                 /* in place, returns s */
 const char *str_basename(const char *path);
 size_t str_copy(char *dst, const char *src, size_t cap);   /* always NUL-terminates */
 
-/* Minimal printf: %s %d %i %u %x %X %p %c %%, with optional width / '0' / '-' / 'l'. */
+/* Minimal printf: %s %d %i %u %x %X %p %c %%, with optional width / '0' / '-' / 'l' / 'll'. */
 int str_vfmt(char *buf, size_t cap, const char *fmt, va_list ap);
 int str_fmt(char *buf, size_t cap, const char *fmt, ...);
 

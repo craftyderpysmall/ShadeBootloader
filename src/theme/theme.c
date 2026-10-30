@@ -29,7 +29,7 @@ static void set_defaults(Theme *t)
     t->radius_card = 16; t->radius_control = 10; t->radius_pill = 999;
     t->gap = 8; t->pad = 16;
     t->size_title = 24; t->size_label = 15; t->size_body = 13; t->size_small = 12;
-    t->tile_w = 168; t->tile_h = 196; t->icon_size = 88;
+    t->tile_w = 176; t->tile_h = 228; t->icon_size = 88;
     t->shadow_blur = 40; t->shadow_y = 16; t->shadow = 0x99000000;
     t->enter_ms = 320; t->exit_ms = 160; t->spring_k = 420; t->spring_zeta = 0.78f;
     t->glow = 0xff141414; t->vignette = 0.6f;
@@ -46,6 +46,8 @@ static void on_key(void *user, const char *sec, const char *key, const char *v)
     #define STR(k, f) if (str_eq_ci(key, k)) { str_copy(t->f, v, sizeof(t->f)); return; }
     if (str_eq_ci(sec, "theme")) {
         STR("name", name);
+        if (str_eq_ci(key, "author") || str_eq_ci(key, "description"))
+            return;
     } else if (str_eq_ci(sec, "palette")) {
         COL("bg", bg) COL("surface", surface) COL("raised", raised)
         COL("border", border) COL("border-strong", border_strong)
