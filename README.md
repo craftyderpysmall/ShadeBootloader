@@ -50,13 +50,11 @@ make run        # QEMU + OVMF with test disks: Windows, Ubuntu, a USB
                 # installer and an ignored "GAMES" drive, plus clutter
 ```
 
-`make run` shows the VM in your browser (the devcontainer has no display):
-open <http://localhost:6080/vnc.html?autoconnect=1&resize=scale&port=5700>.
-VS Code forwards ports 6080 and 5700 automatically. On a desktop with a GTK
-or SDL build of QEMU, `make run-window` opens a normal window instead.
-
-The test "OS loaders" are stand-ins: picking one prints its path and powers
-the VM off. Any key cancels the 8-second countdown.
+`make run` opens a native QEMU window (GTK, scaled to fit, so tiling window
+managers are fine). The devcontainer reaches your desktop through the X
+display VS Code forwards. Without a GUI-capable QEMU it falls back to the
+browser via noVNC (`make run-browser`). The test "OS loaders" are stand-ins:
+picking one shows its path, and any key returns to Shade.
 
 `make run-headless` exposes a monitor socket; `tools/qemu-ctl.py` can take
 screenshots and send keys (that's how the screenshots above were made).

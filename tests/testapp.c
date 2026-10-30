@@ -1,7 +1,7 @@
 /*
  * Stand-in for real OS loaders on the QEMU test disks. Reports its own path
- * and load options on the debug console, shows them on screen, then powers
- * the VM off so automated runs terminate.
+ * and load options on the debug console, shows them on screen, then returns
+ * to Shade after a key press (or a few seconds), like a loader that exited.
  */
 #include "efi.h"
 
@@ -40,8 +40,14 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     st->ConOut->ClearScreen(st->ConOut);
     st->ConOut->OutputString(st->ConOut, (CHAR16 *)u"Shade test loader started: ");
     st->ConOut->OutputString(st->ConOut, path);
-    st->ConOut->OutputString(st->ConOut, (CHAR16 *)u"\r\n");
-    st->BootServices->Stall(1500000);
-    st->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, 0);
+    st->ConOut->OutputString(st->ConOut, (CHAR16 *)u"\r\n\r\nPress any key to return to Shade.\r\n");
+    EFI_INPUT_KEY key;
+    while (st->ConIn->ReadKeyStroke(st->ConIn, &key) == EFI_SUCCESS)
+        ;   /* drop the Enter that launched us */
+    for (int i = 0; i < 100; i++) {
+        if (st->ConIn->ReadKeyStroke(st->ConIn, &key) == EFI_SUCCESS)
+            break;
+        st->BootServices->Stall(50000);
+    }
     return EFI_SUCCESS;
 }
