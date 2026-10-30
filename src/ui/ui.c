@@ -476,7 +476,7 @@ static void draw_hints(double now)
         return;
     float op = enter_at(now, 200) * ui.fade_chrome;
     const char *h = ui.sheet ? "Enter  boot      Esc  cancel"
-                             : "\xe2\x86\x90 \xe2\x86\x92  choose      Enter  start      Tab  power      F2  options      F3  hidden";
+                             : "\xe2\x86\x90 \xe2\x86\x92  choose      Enter  start      Tab  next      F2  options      F3  hidden";
     if (text_width(ui.f_small, h) > ui.W - S(32))
         return;
     text_center(ui.f_small, ui.W * 0.5f, ui.H - S(22), h, color_fade(ui.t->fg_subtle, op));

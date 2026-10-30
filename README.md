@@ -34,7 +34,8 @@ quickly.
 |-----|--------|
 | ← → / 1–9 / Home / End | choose |
 | Enter / Space / click | start |
-| Tab, ↓ | power bar (Firmware Settings, Restart, Shut Down) |
+| Tab / Shift+Tab | move focus: tiles → Firmware Settings → Restart → Shut Down → tiles |
+| ↓ / ↑ | jump to the power buttons / back to the tiles |
 | F2 / e | edit the load options (kernel command line) for this boot |
 | F3 | show / hide hidden entries |
 | Esc | close hidden entries / the options sheet |
