@@ -71,7 +71,7 @@ endif
 .PHONY: toolcheck
 toolcheck:
 	@echo "Missing build tools: $(MISSING_TOOLS)"
-	@echo "Either build inside the devcontainer (VS Code terminal), or install them:"
+	@echo "Install them (full list per OS in the README, under Requirements):"
 	@echo "  Arch:          sudo pacman -S clang lld python"
 	@echo "  Debian/Ubuntu: sudo apt install clang lld python3"
 	@echo "  Fedora:        sudo dnf install clang lld python3"

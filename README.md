@@ -52,22 +52,18 @@ make run        # QEMU + OVMF with test disks: Windows, Ubuntu, a USB
                 # installer and an ignored "GAMES" drive, plus clutter
 ```
 
-`make run` opens a native QEMU window (GTK, scaled to fit, so tiling window
-managers are fine). The devcontainer reaches your desktop through the X
-display VS Code forwards. Without a GUI-capable QEMU it falls back to the
-browser via noVNC (`make run-browser`). The test "OS loaders" are stand-ins:
+`make run` opens a native QEMU window (GTK on Linux, Cocoa on macOS, scaled
+to fit, so tiling window managers are fine). Without a GUI-capable QEMU it
+falls back to the browser via noVNC (`make run-browser`). The test "OS loaders" are stand-ins:
 picking one shows its path, and any key returns to Shade.
 
 `make run-headless` exposes a monitor socket; `tools/qemu-ctl.py` can take
 screenshots and send keys (that's how the screenshots above were made).
 
-The devcontainer has the full toolchain, plus the GitHub CLI and Claude Code,
-whose logins persist in named volumes across rebuilds.
+### Requirements
 
-### Without the container
-
-You don't need Docker. Shade builds with ordinary packages; install them,
-then use the same `make`, `make test` and `make run` as above.
+Shade builds with ordinary distro packages; install them, then use the
+`make` commands above.
 
 | What | Why |
 |------|-----|
