@@ -56,6 +56,7 @@ static struct {
 
     Tile tiles[MAX_VIS];
     int ntiles;
+    Image **entry_icons;    /* per entry, resampled lazily, kept for the session */
     int sel;
     bool show_hidden;
 
@@ -191,7 +192,9 @@ static void build_tiles(Entry *keep)
             continue;
         Tile *t = &ui.tiles[ui.ntiles++];
         t->e = e;
-        t->icon = icon_sized(e->icon[0] ? e->icon : "os-generic", ui.icon_px);
+        if (!ui.entry_icons[i])
+            ui.entry_icons[i] = icon_sized(e->icon[0] ? e->icon : "os-generic", ui.icon_px);
+        t->icon = ui.entry_icons[i];
     }
     ui.sel = 0;
     for (int i = 0; i < ui.ntiles; i++)
@@ -284,7 +287,7 @@ static float countdown_left(double now)
 
 static void show_toast(const char *msg)
 {
-    str_copy(ui.toast, msg, sizeof(ui.toast));
+    text_ellipsize(ui.f_body, msg, ui.W - S(112), ui.toast, sizeof(ui.toast));
     ui.toast_at = now_s();
 }
 
@@ -474,6 +477,8 @@ static void draw_hints(double now)
     float op = enter_at(now, 200) * ui.fade_chrome;
     const char *h = ui.sheet ? "Enter  boot      Esc  cancel"
                              : "\xe2\x86\x90 \xe2\x86\x92  choose      Enter  start      Tab  power      F2  options      F3  hidden";
+    if (text_width(ui.f_small, h) > ui.W - S(32))
+        return;
     text_center(ui.f_small, ui.W * 0.5f, ui.H - S(22), h, color_fade(ui.t->fg_subtle, op));
 }
 
@@ -718,18 +723,22 @@ static void update_clock(void)
         ui.clock_text[0] = 0;
         return;
     }
+    /* a dead CMOS battery can hand back anything: show nothing rather than garbage */
+    if (tm.Month < 1 || tm.Month > 12 || tm.Day < 1 || tm.Day > 31 || tm.Hour > 23 || tm.Minute > 59) {
+        ui.clock_text[0] = 0;
+        return;
+    }
     int minute = tm.Hour * 60 + tm.Minute;
     if (minute == ui.last_minute)
         return;
     ui.last_minute = minute;
     static const char *days[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-    static const char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
     int y = tm.Year, m = tm.Month, d = tm.Day;
     if (m < 3) { m += 12; y--; }
-    int dow = (d + 13 * (m + 1) / 5 + y + y / 4 - y / 100 + y / 400 + 6) % 7;   /* Zeller -> Sun=0 */
-    str_fmt(ui.clock_text, sizeof(ui.clock_text), "%s %d %s   %02d:%02d", days[dow], tm.Day,
-            months[(tm.Month - 1) % 12], tm.Hour, tm.Minute);
+    int dow = ((d + 13 * (m + 1) / 5 + y + y / 4 - y / 100 + y / 400 + 6) % 7 + 7) % 7;  /* Zeller -> Sun=0 */
+    int h12 = tm.Hour % 12 ? tm.Hour % 12 : 12;
+    str_fmt(ui.clock_text, sizeof(ui.clock_text), "%s %d/%d   %d:%02d %s", days[dow], tm.Month, tm.Day,
+            h12, tm.Minute, tm.Hour < 12 ? "AM" : "PM");
 }
 
 /* ---- input ----------------------------------------------------------- */
@@ -822,7 +831,7 @@ static Act handle_key(const Event *ev, double now, int *arg)
         toggle_hidden(now);
     } else if (sc == SCAN_F2 || ch == 'e') {
         open_sheet(now);
-    } else if (ch == '\t' || (ch == 0 && sc == 0 && ev->shift)) {
+    } else if (ch == '\t') {
         if (ui.focus == FOCUS_ROW) {
             ui.focus = FOCUS_BAR;
             ui.bar_sel = ev->shift ? ui.nbtn - 1 : 0;
@@ -970,7 +979,7 @@ void ui_init(Theme *theme, Settings *settings, BootSet *boot)
     ui.c = fb_back();
     ui.W = ui.c->w;
     ui.H = ui.c->h;
-    ui.s = settings->scale > 0 ? settings->scale : clampf(ui.H / 900.0f, 1, 3);
+    ui.s = settings->scale > 0 ? clampf(settings->scale, 0.5f, 4) : clampf(ui.H / 900.0f, 1, 3);
     ui.f_title = font_face(theme->semibold, roundf(S(theme->size_title)));
     ui.f_label = font_face(theme->semibold, roundf(S(theme->size_label)));
     ui.f_body = font_face(theme->regular, roundf(S(theme->size_body)));
@@ -990,6 +999,8 @@ void ui_init(Theme *theme, Settings *settings, BootSet *boot)
     Image *cur = theme_icon(theme, "cursor");
     if (cur) {
         int n = (int)(S(24) + 0.5f);
+        if (n > 96)
+            n = 96;
         ui.cursor = image_resample(cur, n, n);
         fb_set_cursor(ui.cursor, (int)(n * 0.156f), (int)(n * 0.078f));
     }
@@ -1003,6 +1014,7 @@ void ui_init(Theme *theme, Settings *settings, BootSet *boot)
         recall_last(want, sizeof(want));
     else
         str_copy(want, settings->default_entry, sizeof(want));
+    ui.entry_icons = calloc(boot->entries.count ? boot->entries.count : 1, sizeof(Image *));
     build_tiles(NULL);
     ui.default_entry = ui.ntiles ? ui.tiles[0].e : NULL;
     if (want[0])

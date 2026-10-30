@@ -325,6 +325,40 @@ void filter_apply_rules(EntryList *l, const IgnoreRules *r)
     }
 }
 
+/* Two visible tiles with the same title (Windows on two drives): say which
+ * drive each one is on, so the subtitles tell them apart. */
+static void disambiguate(const Volume *vols, int nvols, EntryList *l, int first)
+{
+    for (int i = first; i < l->count; i++) {
+        Entry *a = &l->items[i];
+        if (a->hidden)
+            continue;
+        for (int j = first; j < l->count; j++) {
+            Entry *b = &l->items[j];
+            if (i == j || b->hidden || !str_eq_ci(a->title, b->title))
+                continue;
+            if (a->vol >= 0 && a->vol < nvols) {
+                const Volume *v = &vols[a->vol];
+                const char *label = v->label && *v->label ? v->label : NULL;
+                /* labels like "EFI" don't help when both disks use them */
+                bool unique = label != NULL;
+                for (int k = first; k < l->count && unique; k++) {
+                    const Entry *c = &l->items[k];
+                    if (k != i && !c->hidden && str_eq_ci(c->title, a->title) && c->vol >= 0 &&
+                        c->vol < nvols && c->vol != a->vol && vols[c->vol].label &&
+                        str_eq_ci(vols[c->vol].label, label))
+                        unique = false;
+                }
+                if (unique)
+                    str_fmt(a->subtitle, sizeof(a->subtitle), "on %s", label);
+                else
+                    str_fmt(a->subtitle, sizeof(a->subtitle), "%s %d", media_name(v->media), a->vol + 1);
+            }
+            break;
+        }
+    }
+}
+
 void filter_build(const Volume *vols, int nvols,
                   const Candidate *cands, int ncands,
                   const IgnoreRules *rules,
@@ -459,5 +493,6 @@ void filter_build(const Volume *vols, int nvols,
                 hide(&out->items[j], "duplicate");
 
     filter_apply_rules(out, rules);
+    disambiguate(vols, nvols, out, first);
     entries_sort(out);
 }

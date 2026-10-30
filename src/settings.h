@@ -20,7 +20,7 @@ typedef struct {
 } CustomEntry;
 
 typedef struct {
-    int   timeout;              /* seconds; -1 waits forever, 0 boots immediately */
+    int   timeout;              /* seconds; -1 (default) waits for a choice, 0 boots immediately */
     char  default_entry[64];    /* title glob, or "last" */
     char  theme[48];
     char  resolution[24];       /* auto | max | WxH */

@@ -25,5 +25,8 @@ bool input_poll(Event *ev);
 /* Sleep until input arrives or timeout_ms passes. */
 void input_wait(int timeout_ms);
 bool input_has_pointer(void);
+/* Release devices Shade drives itself while another image runs. */
+void input_suspend(void);
+void input_resume(void);
 
 #endif

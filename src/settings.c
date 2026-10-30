@@ -72,7 +72,7 @@ static void on_key(void *user, const char *sec, const char *key, const char *v)
 void settings_load(Settings *s, void *root, const char *self_dir)
 {
     memset(s, 0, sizeof(*s));
-    s->timeout = 5;
+    s->timeout = -1;        /* manual: wait until someone picks */
     str_copy(s->theme, "neutral", sizeof(s->theme));
     str_copy(s->resolution, "auto", sizeof(s->resolution));
     s->connect_all = true;

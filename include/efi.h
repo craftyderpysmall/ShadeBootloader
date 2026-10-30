@@ -344,6 +344,52 @@ typedef struct {
     void *Reset, *ReadBlocks, *WriteBlocks, *FlushBlocks;
 } EFI_BLOCK_IO_PROTOCOL;
 
+/* ---- USB I/O --------------------------------------------------------- */
+
+#pragma pack(push, 1)
+typedef struct {
+    UINT8  RequestType;
+    UINT8  Request;
+    UINT16 Value;
+    UINT16 Index;
+    UINT16 Length;
+} EFI_USB_DEVICE_REQUEST;
+
+typedef struct {
+    UINT8 Length, DescriptorType, InterfaceNumber, AlternateSetting, NumEndpoints;
+    UINT8 InterfaceClass, InterfaceSubClass, InterfaceProtocol, Interface;
+} EFI_USB_INTERFACE_DESCRIPTOR;
+
+typedef struct {
+    UINT8  Length, DescriptorType, EndpointAddress, Attributes;
+    UINT16 MaxPacketSize;
+    UINT8  Interval;
+} EFI_USB_ENDPOINT_DESCRIPTOR;
+#pragma pack(pop)
+
+typedef enum { EfiUsbDataIn, EfiUsbDataOut, EfiUsbNoData } EFI_USB_DATA_DIRECTION;
+
+typedef EFI_STATUS (EFIAPI *EFI_ASYNC_USB_TRANSFER_CALLBACK)(VOID *Data, UINTN DataLength,
+                                                             VOID *Context, UINT32 Status);
+
+typedef struct EFI_USB_IO_PROTOCOL {
+    EFI_STATUS (EFIAPI *UsbControlTransfer)(struct EFI_USB_IO_PROTOCOL *, EFI_USB_DEVICE_REQUEST *,
+                                            EFI_USB_DATA_DIRECTION, UINT32 TimeoutMs, VOID *Data,
+                                            UINTN DataLength, UINT32 *Status);
+    void *UsbBulkTransfer;
+    EFI_STATUS (EFIAPI *UsbAsyncInterruptTransfer)(struct EFI_USB_IO_PROTOCOL *, UINT8 Endpoint,
+                                                   BOOLEAN IsNewTransfer, UINTN PollingIntervalMs,
+                                                   UINTN DataLength, EFI_ASYNC_USB_TRANSFER_CALLBACK,
+                                                   VOID *Context);
+    void *UsbSyncInterruptTransfer;
+    void *UsbIsochronousTransfer, *UsbAsyncIsochronousTransfer;
+    void *UsbGetDeviceDescriptor, *UsbGetConfigDescriptor;
+    EFI_STATUS (EFIAPI *UsbGetInterfaceDescriptor)(struct EFI_USB_IO_PROTOCOL *, EFI_USB_INTERFACE_DESCRIPTOR *);
+    EFI_STATUS (EFIAPI *UsbGetEndpointDescriptor)(struct EFI_USB_IO_PROTOCOL *, UINT8 Index,
+                                                  EFI_USB_ENDPOINT_DESCRIPTOR *);
+    void *UsbGetStringDescriptor, *UsbGetSupportedLanguages, *UsbPortReset;
+} EFI_USB_IO_PROTOCOL;
+
 /* ---- Loaded image ---------------------------------------------------- */
 
 typedef struct {
@@ -370,6 +416,10 @@ typedef enum { EfiResetCold, EfiResetWarm, EfiResetShutdown, EfiResetPlatformSpe
 
 #define EVT_TIMER 0x80000000
 
+#define TPL_APPLICATION 4
+#define TPL_CALLBACK    8
+#define TPL_NOTIFY      16
+
 #define EFI_VARIABLE_NON_VOLATILE       0x1
 #define EFI_VARIABLE_BOOTSERVICE_ACCESS 0x2
 #define EFI_VARIABLE_RUNTIME_ACCESS     0x4
@@ -381,14 +431,15 @@ typedef enum { EfiResetCold, EfiResetWarm, EfiResetShutdown, EfiResetPlatformSpe
 
 typedef struct {
     EFI_TABLE_HEADER Hdr;
-    void *RaiseTPL, *RestoreTPL;
+    EFI_TPL (EFIAPI *RaiseTPL)(EFI_TPL);
+    void (EFIAPI *RestoreTPL)(EFI_TPL);
     void *AllocatePages, *FreePages, *GetMemoryMap;
     EFI_STATUS (EFIAPI *AllocatePool)(EFI_MEMORY_TYPE, UINTN, VOID **);
     EFI_STATUS (EFIAPI *FreePool)(VOID *);
     EFI_STATUS (EFIAPI *CreateEvent)(UINT32, EFI_TPL, void *, VOID *, EFI_EVENT *);
     EFI_STATUS (EFIAPI *SetTimer)(EFI_EVENT, EFI_TIMER_DELAY, UINT64);
     EFI_STATUS (EFIAPI *WaitForEvent)(UINTN, EFI_EVENT *, UINTN *);
-    void *SignalEvent;
+    EFI_STATUS (EFIAPI *SignalEvent)(EFI_EVENT);
     EFI_STATUS (EFIAPI *CloseEvent)(EFI_EVENT);
     EFI_STATUS (EFIAPI *CheckEvent)(EFI_EVENT);
     void *InstallProtocolInterface, *ReinstallProtocolInterface, *UninstallProtocolInterface;
@@ -468,6 +519,10 @@ typedef struct EFI_SYSTEM_TABLE {
     { 0x09576e91, 0x6d3f, 0x11d2, { 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } }
 #define EFI_BLOCK_IO_PROTOCOL_GUID \
     { 0x964e5b21, 0x6459, 0x11d2, { 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } }
+#define EFI_USB_IO_PROTOCOL_GUID \
+    { 0x2b2f68d6, 0x0cd2, 0x44cf, { 0x8e, 0x8b, 0xbb, 0xa2, 0x0b, 0x1b, 0x5b, 0x75 } }
+#define EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID \
+    { 0x387477c1, 0x69c7, 0x11d2, { 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } }
 #define EFI_GLOBAL_VARIABLE_GUID \
     { 0x8be4df61, 0x93ca, 0x11d2, { 0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c } }
 

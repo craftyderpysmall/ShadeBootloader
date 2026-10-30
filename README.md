@@ -37,9 +37,10 @@ quickly.
 | Tab, ↓ | power bar (Firmware Settings, Restart, Shut Down) |
 | F2 / e | edit the load options (kernel command line) for this boot |
 | F3 | show / hide hidden entries |
-| Esc | cancel the countdown |
+| Esc | close hidden entries / the options sheet |
 
-Any input cancels the auto-boot countdown.
+Nothing boots until you choose. To auto-boot the default after N seconds,
+set `timeout = N` in `shade.conf`; any input then cancels the countdown.
 
 ## Build and try it
 
@@ -79,7 +80,7 @@ shim/MOK.
 `\EFI\shade\shade.conf`, fully commented in [config/shade.conf](config/shade.conf):
 
 ```ini
-timeout = 5
+timeout = -1            # manual (default); N = auto-boot after N seconds
 default = last          # or a title, e.g. Windows
 theme   = neutral
 

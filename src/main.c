@@ -10,6 +10,7 @@
 #include "core/log.h"
 #include "core/str.h"
 #include "gfx/gfx.h"
+#include "input/input.h"
 #include "settings.h"
 #include "theme/theme.h"
 #include "ui/ui.h"
@@ -84,8 +85,10 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
         case UI_BOOT:
             if (str_eq_ci(settings.default_entry, "last"))
                 remember_last(r.entry->title);
+            input_suspend();    /* hand USB pointers over to the loader */
             if (!boot_entry(&boot, r.entry, err, sizeof(err)))
                 toast = err;
+            input_resume();
             fb_restore();
             break;
         }

@@ -160,6 +160,35 @@ static void test_ignore_rules(void)
     entries_free(&l);
 }
 
+static void test_duplicate_titles(void)
+{
+    Volume vols[] = { { "EFI", "", MEDIA_INTERNAL, NULL }, { "EFI", "", MEDIA_INTERNAL, NULL },
+                      { "Work", "", MEDIA_INTERNAL, NULL } };
+    Candidate c[] = {
+        file(0, "\\EFI\\Microsoft\\Boot\\bootmgfw.efi"),
+        file(1, "\\EFI\\Microsoft\\Boot\\bootmgfw.efi"),
+        file(2, "\\EFI\\Microsoft\\Boot\\bootmgfw.efi"),
+    };
+    EntryList l = { 0 };
+    filter_build(vols, 3, c, 3, NULL, -1, NULL, &l);
+    CHECK(l.count == 3 && entries_visible(&l) == 3, "all three Windows installs shown");
+    CHECK(strcmp(l.items[0].subtitle, l.items[1].subtitle) != 0 &&
+          strcmp(l.items[1].subtitle, l.items[2].subtitle) != 0 &&
+          strcmp(l.items[0].subtitle, l.items[2].subtitle) != 0,
+          "subtitles differ: [%s] [%s] [%s]", l.items[0].subtitle, l.items[1].subtitle, l.items[2].subtitle);
+    int work = -1;
+    for (int i = 0; i < 3; i++)
+        if (l.items[i].vol == 2)
+            work = i;
+    CHECK(work >= 0 && strcmp(l.items[work].subtitle, "on Work") == 0, "unique label used");
+    entries_free(&l);
+
+    /* a single Windows keeps its normal subtitle */
+    filter_build(vols, 1, c, 1, NULL, -1, NULL, &l);
+    CHECK(strcmp(l.items[0].subtitle, "Windows Boot Manager") == 0, "lone entry untouched");
+    entries_free(&l);
+}
+
 static void on_kv(void *user, const char *sec, const char *key, const char *val)
 {
     char *out = user;
@@ -186,6 +215,7 @@ int main(void)
     test_systemd_boot_and_ukis();
     test_nvram_custom_loader();
     test_ignore_rules();
+    test_duplicate_titles();
     test_config_parser();
     if (failures) {
         printf("%d check(s) failed\n", failures);

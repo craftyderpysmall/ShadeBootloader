@@ -117,9 +117,9 @@ void fb_present(Rect r)
         return;
 
     /* Composite the cursor into the back buffer just for this Blt, then restore. */
-    uint32_t saved[64 * 64];
+    static uint32_t saved[96 * 96];
     Rect cr = rect_intersect(fb_cursor_rect(), r);
-    bool draw_cursor = cursor_on && !rect_empty(cr) && cr.w <= 64 && cr.h <= 64;
+    bool draw_cursor = cursor_on && !rect_empty(cr) && cr.w <= 96 && cr.h <= 96;
     if (draw_cursor) {
         for (int y = 0; y < cr.h; y++)
             memcpy(&saved[y * cr.w], &back.px[(cr.y + y) * back.stride + cr.x], cr.w * 4);

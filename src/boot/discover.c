@@ -127,6 +127,22 @@ static void scan_volume(EFI_FILE_PROTOCOL *root, int vol, CandList *out)
         cand_add(out, vol, "\\System\\Library\\CoreServices\\boot.efi", NULL, -1);
 }
 
+/* A device path from NVRAM must stay inside its variable and end properly. */
+static bool dp_within(const EFI_DEVICE_PATH *dp, size_t max)
+{
+    const uint8_t *p = (const uint8_t *)dp, *end = p + max;
+    while (p + 4 <= end) {
+        const EFI_DEVICE_PATH *n = (const EFI_DEVICE_PATH *)p;
+        size_t len = n->Length[0] | (n->Length[1] << 8);
+        if (len < 4 || p + len > end)
+            return false;
+        if (dp_is_end(n))
+            return true;
+        p += len;
+    }
+    return false;
+}
+
 static void scan_nvram(BootSet *b, CandList *out)
 {
     size_t size = 0;
@@ -145,10 +161,10 @@ static void scan_nvram(BootSet *b, CandList *out)
         UINT32 attr = *(UINT32 *)opt;
         UINT16 dp_len = *(UINT16 *)(opt + 4);
         CHAR16 *desc_w = (CHAR16 *)(opt + 6);
-        size_t desc_len = wstrlen(desc_w);
+        size_t desc_len = wstrlen(desc_w);      /* var_get NUL-pads, so this stops */
         EFI_DEVICE_PATH *dp = (EFI_DEVICE_PATH *)(opt + 6 + (desc_len + 1) * 2);
         if (!(attr & LOAD_OPTION_ACTIVE) || (attr & LOAD_OPTION_HIDDEN) ||
-            (uint8_t *)dp + dp_len > opt + n) {
+            6 + (desc_len + 1) * 2 + dp_len > n || !dp_within(dp, dp_len)) {
             free(opt);
             continue;
         }
@@ -202,6 +218,19 @@ static void add_custom(const Settings *s, BootSet *b)
         if (vol < 0 || !c->path[0]) {
             LOG("config: entry.%s has no reachable volume/path", c->id);
             continue;
+        }
+        /* a custom entry for a loader we also found on our own replaces it */
+        char norm[256];
+        str_copy(norm, c->path, sizeof(norm));
+        for (char *p = norm; *p; p++)
+            if (*p == '/')
+                *p = '\\';
+        for (int k = 0; k < b->entries.count; k++) {
+            Entry *o = &b->entries.items[k];
+            if (!o->custom && o->vol == vol && str_eq_ci(o->path, norm) && !o->hidden) {
+                o->hidden = true;
+                str_copy(o->why, "replaced by custom entry", sizeof(o->why));
+            }
         }
         Entry *e = entries_add(&b->entries);
         e->kind = KIND_OS;

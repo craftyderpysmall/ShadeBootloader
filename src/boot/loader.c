@@ -43,6 +43,9 @@ bool boot_entry(const BootSet *b, const Entry *e, char *err, int cap)
     free(dp);
     LOG("boot: LoadImage %s -> %llx", e->path, st);
     if (EFI_ERROR(st)) {
+        /* on a Secure Boot rejection the image is loaded anyway and must be freed */
+        if (image)
+            gBS->UnloadImage(image);
         str_fmt(err, cap, "%s (%s)", status_text(st), e->path);
         return false;
     }

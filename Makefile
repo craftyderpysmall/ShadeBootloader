@@ -130,12 +130,17 @@ debug: esp $(BUILD)/OVMF_VARS.fd
 
 # ---- host unit tests -------------------------------------------------
 
-HOST_CC := clang
+# gcc: its address/UB sanitizer runtimes ship with the toolchain
+HOST_CC := gcc
+HOST_CFLAGS := -std=c11 -g -Wall -Wextra -fsanitize=address,undefined -fno-sanitize-recover=all -Isrc
 test:
 	@mkdir -p $(BUILD)/host
-	$(HOST_CC) -std=c11 -g -Wall -Wextra -Isrc -o $(BUILD)/host/filter_test \
+	$(HOST_CC) $(HOST_CFLAGS) -o $(BUILD)/host/filter_test \
 		tests/filter_test.c src/boot/filter.c src/core/str.c src/core/config.c
 	$(BUILD)/host/filter_test
+	$(HOST_CC) $(HOST_CFLAGS) -o $(BUILD)/host/hid_test \
+		tests/hid_test.c src/input/hid.c
+	$(BUILD)/host/hid_test
 
 clean:
 	rm -rf $(BUILD)

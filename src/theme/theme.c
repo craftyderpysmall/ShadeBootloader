@@ -7,7 +7,7 @@
 #include "core/log.h"
 #include "core/str.h"
 
-#define ICON_CACHE 32
+#define ICON_CACHE 64
 
 typedef struct {
     char name[48];
@@ -111,6 +111,37 @@ static Font *load_font(Theme *t, const char *spec, const char *fallback)
     return font_load(a->data, a->size);
 }
 
+static float clampv(float v, float lo, float hi, float def)
+{
+    if (!(v == v))      /* NaN */
+        return def;
+    return v < lo ? lo : (v > hi ? hi : v);
+}
+
+/* A typo in a theme must not divide by zero or allocate absurd buffers. */
+static void sanitize(Theme *t)
+{
+    t->tile_w = clampv(t->tile_w, 64, 512, 176);
+    t->tile_h = clampv(t->tile_h, 96, 640, 228);
+    t->icon_size = clampv(t->icon_size, 16, t->tile_w, 88);
+    t->size_title = clampv(t->size_title, 8, 96, 24);
+    t->size_label = clampv(t->size_label, 6, 64, 15);
+    t->size_body = clampv(t->size_body, 6, 64, 13);
+    t->size_small = clampv(t->size_small, 6, 64, 12);
+    t->gap = clampv(t->gap, 0, 128, 8);
+    t->pad = clampv(t->pad, 0, 256, 16);
+    t->radius_card = clampv(t->radius_card, 0, 999, 16);
+    t->radius_control = clampv(t->radius_control, 0, 999, 10);
+    t->radius_pill = clampv(t->radius_pill, 0, 999, 999);
+    t->shadow_blur = clampv(t->shadow_blur, 0, 128, 40);
+    t->shadow_y = clampv(t->shadow_y, -64, 64, 16);
+    t->enter_ms = clampv(t->enter_ms, 1, 3000, 320);
+    t->exit_ms = clampv(t->exit_ms, 1, 3000, 160);
+    t->spring_k = clampv(t->spring_k, 10, 5000, 420);
+    t->spring_zeta = clampv(t->spring_zeta, 0.1f, 3, 0.78f);
+    t->vignette = clampv(t->vignette, 0, 1, 0.6f);
+}
+
 void theme_load(Theme *t, void *root, const char *name)
 {
     set_defaults(t);
@@ -133,6 +164,7 @@ void theme_load(Theme *t, void *root, const char *name)
                 t->dir[0] = 0;
         }
     }
+    sanitize(t);
     t->regular = load_font(t, t->font_regular, "fonts/Inter-Regular.ttf");
     t->semibold = load_font(t, t->font_semibold, "fonts/Inter-SemiBold.ttf");
 }
