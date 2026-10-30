@@ -64,17 +64,68 @@ screenshots and send keys (that's how the screenshots above were made).
 The devcontainer has the full toolchain, plus the GitHub CLI and Claude Code,
 whose logins persist in named volumes across rebuilds.
 
-## Install
+### Without the container
 
-Build inside the devcontainer (VS Code's terminal), where the toolchain
-lives. The project folder is shared with your machine, so then run the
-installer from a terminal on your machine itself; it needs your real ESP
-and firmware, which the container can't reach. To build on your machine
-instead, install `clang`, `lld` and `python3` first.
+You don't need Docker. Shade builds with ordinary packages; install them,
+then use the same `make`, `make test` and `make run` as above.
+
+| What | Why |
+|------|-----|
+| clang, lld, make | build the `.efi` (lld provides `lld-link`) |
+| python3 | embeds fonts/theme, builds the test disks (standard library only) |
+| mtools, dosfstools | FAT test disks for `make run` |
+| qemu (x86_64, with a GUI) + OVMF | `make run` (only needed to try it in a VM) |
+| gcc | `make test` (host tests run under AddressSanitizer) |
+| efibootmgr | `tools/install.sh` on a real machine |
+
+**Arch / Manjaro / EndeavourOS**
 
 ```sh
-make                               # in the devcontainer
-sudo tools/install.sh              # on your machine; --dry-run shows what it would do
+sudo pacman -S --needed clang lld make python mtools dosfstools qemu-desktop edk2-ovmf gcc efibootmgr
+```
+
+**Debian / Ubuntu / Pop!_OS / Mint**
+
+```sh
+sudo apt install clang lld make python3 mtools dosfstools qemu-system-x86 qemu-system-gui ovmf gcc efibootmgr
+```
+
+**Fedora**
+
+```sh
+sudo dnf install clang lld make python3 mtools dosfstools qemu-system-x86 qemu-ui-gtk edk2-ovmf gcc libasan libubsan efibootmgr
+```
+
+**macOS** (Homebrew; Apple's clang can't link EFI binaries, so use Homebrew's LLVM)
+
+```sh
+brew install llvm lld make python mtools dosfstools qemu
+gmake CC="$(brew --prefix llvm)/bin/clang"      # likewise: gmake run CC=...
+```
+
+`make run` opens a Cocoa window there. Intel Macs use HVF acceleration; Apple
+Silicon emulates x86, so it's slower but works. `tools/install.sh` is
+Linux-only.
+
+**Windows**: use WSL2 with Ubuntu and follow the Debian/Ubuntu line. WSLg
+shows the QEMU window on your desktop. To install Shade on the real machine,
+copy `build/BOOTX64.EFI` and `themes/` to the ESP yourself (see Install), as
+`install.sh` can't register boot entries from inside WSL.
+
+Notes:
+
+- `make run` uses KVM (Linux) or HVF (Intel Mac) when available and falls
+  back to plain emulation otherwise, which works but animates slowly.
+- The Makefile finds OVMF in the usual places for each distro. If yours is
+  elsewhere: `make run OVMF_CODE=/path/OVMF_CODE.fd OVMF_VARS=/path/OVMF_VARS.fd`.
+- If your QEMU has no window support, `make run-browser` shows the VM in a
+  browser instead (needs `novnc`).
+
+## Install
+
+```sh
+make
+sudo tools/install.sh              # or: tools/install.sh --dry-run to see what it would do
 ```
 
 This copies Shade to `\EFI\shade\shadex64.efi` with the themes and a default

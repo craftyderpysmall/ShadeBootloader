@@ -8,6 +8,7 @@ disk-usb.img    removable "INSTALLER" stick with only a fallback loader
 disk-games.img  data drive "GAMES" that should be ignored via [ignore]
 """
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -20,10 +21,22 @@ DATA_TYPE = uuid.UUID('ebd0a0a2-b9e5-4433-87c0-68b6b72699c7')
 SECTOR = 512
 
 
+def find_mkfs_fat():
+    """mkfs.fat lives in sbin, which often isn't on a normal user's PATH."""
+    for name in ('mkfs.fat', 'mkfs.vfat', 'mkdosfs'):
+        hit = shutil.which(name)
+        if hit:
+            return hit
+        for d in ('/usr/sbin', '/sbin', '/opt/homebrew/sbin', '/usr/local/sbin'):
+            if os.access(os.path.join(d, name), os.X_OK):
+                return os.path.join(d, name)
+    sys.exit('mkfs.fat not found: install dosfstools')
+
+
 def make_fat(path, size_mb, label, files):
     if os.path.exists(path):
         os.remove(path)
-    subprocess.run(['/sbin/mkfs.fat', '-C', '-F', '32' if size_mb >= 64 else '16',
+    subprocess.run([find_mkfs_fat(), '-C', '-F', '32' if size_mb >= 64 else '16',
                     '-n', label, path, str(size_mb * 1024)],
                    check=True, stdout=subprocess.DEVNULL)
     made = set()

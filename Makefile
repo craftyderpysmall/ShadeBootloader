@@ -18,15 +18,22 @@ OVMF_PAIRS := \
   /usr/share/edk2/ovmf/OVMF_CODE.fd:/usr/share/edk2/ovmf/OVMF_VARS.fd \
   /usr/share/edk2-ovmf/x64/OVMF_CODE.fd:/usr/share/edk2-ovmf/x64/OVMF_VARS.fd \
   /usr/share/qemu/ovmf-x86_64-4m-code.bin:/usr/share/qemu/ovmf-x86_64-4m-vars.bin \
-  /usr/share/qemu/edk2-x86_64-code.fd:/usr/share/qemu/edk2-i386-vars.fd
+  /usr/share/qemu/edk2-x86_64-code.fd:/usr/share/qemu/edk2-i386-vars.fd \
+  /opt/homebrew/share/qemu/edk2-x86_64-code.fd:/opt/homebrew/share/qemu/edk2-i386-vars.fd \
+  /usr/local/share/qemu/edk2-x86_64-code.fd:/usr/local/share/qemu/edk2-i386-vars.fd
 OVMF_PAIR := $(firstword $(foreach p,$(OVMF_PAIRS),$(if $(wildcard $(firstword $(subst :, ,$(p)))),$(p))))
 OVMF_CODE ?= $(word 1,$(subst :, ,$(OVMF_PAIR)))
 OVMF_VARS ?= $(word 2,$(subst :, ,$(OVMF_PAIR)))
 
-# Hardware acceleration when available (falls back to emulation).
-QEMU_ACCEL := $(if $(wildcard /dev/kvm),-accel kvm -accel tcg,)
-# Does this QEMU build have a native window backend?
-QEMU_GUI := $(shell $(QEMU) -display help 2>/dev/null | grep -qE '^(gtk|sdl|cocoa)' && echo yes)
+# Hardware acceleration when available (QEMU falls back to emulation).
+QEMU_ACCEL := $(if $(wildcard /dev/kvm),-accel kvm -accel tcg,$(if $(filter Darwin,$(shell uname -s)),-accel hvf -accel tcg,))
+# Native window backend this QEMU build has: gtk (Linux), cocoa (macOS) or sdl.
+QEMU_DISPLAYS := $(shell $(QEMU) -display help 2>/dev/null)
+QEMU_WINDOW := $(firstword $(filter gtk cocoa sdl,$(QEMU_DISPLAYS)))
+QEMU_GUI := $(if $(QEMU_WINDOW),yes)
+DISPLAY_gtk := gtk,zoom-to-fit=on
+DISPLAY_cocoa := cocoa,zoom-to-fit=on
+DISPLAY_sdl := sdl
 NOVNC ?= $(firstword $(wildcard /usr/share/novnc /usr/share/webapps/novnc /usr/share/novnc-core))
 
 CFLAGS := -target $(ARCH)-unknown-windows -std=c11 -O2 \
@@ -124,7 +131,8 @@ run: run-browser
 endif
 
 run-window: esp $(BUILD)/OVMF_VARS.fd
-	$(QEMU) $(QEMU_COMMON) -name Shade -display gtk,zoom-to-fit=on
+	@test -n "$(QEMU_WINDOW)" || { echo "this QEMU has no window support (gtk/cocoa/sdl); try make run-browser"; exit 1; }
+	$(QEMU) $(QEMU_COMMON) -name Shade -display $(DISPLAY_$(QEMU_WINDOW))
 
 # QEMU's VNC server (websocket on 5700) + noVNC served on 6080.
 run-browser: esp $(BUILD)/OVMF_VARS.fd
