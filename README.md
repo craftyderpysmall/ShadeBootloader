@@ -68,7 +68,7 @@ whose logins persist in named volumes across rebuilds.
 
 ```sh
 make
-sudo tools/install.sh /boot/efi /dev/nvme0n1 1   # ESP mount, disk, ESP partition number
+sudo tools/install.sh              # or: tools/install.sh --dry-run to see what it would do
 ```
 
 This copies Shade to `\EFI\shade\shadex64.efi` with the themes and a default
@@ -89,7 +89,7 @@ theme   = neutral
 volume = Games          # my games drive never shows up
 
 [options]
-Linux = root=/dev/nvme0n1p3 rw quiet
+Linux = root=UUID=<your-root-uuid> rw quiet    # see: findmnt -no UUID /
 ```
 
 ## Layout

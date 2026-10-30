@@ -141,6 +141,7 @@ test:
 	$(HOST_CC) $(HOST_CFLAGS) -o $(BUILD)/host/hid_test \
 		tests/hid_test.c src/input/hid.c
 	$(BUILD)/host/hid_test
+	sh tests/install_test.sh
 
 clean:
 	rm -rf $(BUILD)
