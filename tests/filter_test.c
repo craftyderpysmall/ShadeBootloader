@@ -141,6 +141,23 @@ static void test_nvram_custom_loader(void)
     entries_free(&l);
 }
 
+/* install.sh registers Shade in NVRAM; that must not surface Shade itself. */
+static void test_nvram_registered_self(void)
+{
+    Volume vols[] = { { "ESP", "", MEDIA_INTERNAL, NULL } };
+    Candidate c[] = {
+        file(0, "\\EFI\\Microsoft\\Boot\\bootmgfw.efi"),
+        file(0, "\\EFI\\shade\\shadex64.efi"),
+        nvram(0, "\\EFI\\SHADE\\SHADEX64.EFI", "Shade", 9),
+    };
+    EntryList l = { 0 };
+    filter_build(vols, 1, c, 3, NULL, 0, "\\EFI\\shade\\shadex64.efi", &l);
+    char titles[256];
+    visible_titles(&l, titles, sizeof(titles));
+    CHECK(strcmp(titles, "Windows") == 0, "Shade stays hidden, got [%s]", titles);
+    entries_free(&l);
+}
+
 static void test_ignore_rules(void)
 {
     Volume vols[] = { { "ESP", "abcd-1234", MEDIA_INTERNAL, NULL }, { "Data", "dead-beef", MEDIA_INTERNAL, NULL } };
@@ -214,6 +231,7 @@ int main(void)
     test_fallback_only_drive();
     test_systemd_boot_and_ukis();
     test_nvram_custom_loader();
+    test_nvram_registered_self();
     test_ignore_rules();
     test_duplicate_titles();
     test_config_parser();

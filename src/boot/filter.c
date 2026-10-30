@@ -359,6 +359,20 @@ static void disambiguate(const Volume *vols, int nvols, EntryList *l, int first)
     }
 }
 
+static bool is_self(const Candidate *c, int self_vol, const char *self_path)
+{
+    char vendor[64];
+    split_path(c->path, vendor, sizeof(vendor));
+    return (c->vol == self_vol && self_path && str_eq_ci(c->path, self_path)) || str_eq_ci(vendor, "shade");
+}
+
+/* Overrides any earlier reason: the NVRAM merge re-shows some of those. */
+static void hide_self(Entry *e)
+{
+    e->hidden = true;
+    str_copy(e->why, "Shade itself", sizeof(e->why));
+}
+
 void filter_build(const Volume *vols, int nvols,
                   const Candidate *cands, int ncands,
                   const IgnoreRules *rules,
@@ -378,10 +392,8 @@ void filter_build(const Volume *vols, int nvols,
         Entry *e = entries_add(out);
         e->vol = c->vol;
         classify(e, v, c->path);
-        char vendor[64];
-        split_path(c->path, vendor, sizeof(vendor));
-        if ((c->vol == self_vol && self_path && str_eq_ci(c->path, self_path)) || str_eq_ci(vendor, "shade"))
-            hide(e, "Shade itself");
+        if (is_self(c, self_vol, self_path))
+            hide_self(e);
     }
     int scanned_end = out->count;
 
@@ -462,6 +474,8 @@ void filter_build(const Volume *vols, int nvols,
             }
             if (c->nvram_desc && *c->nvram_desc && e->kind == KIND_OS)
                 str_copy(e->title, c->nvram_desc, sizeof(e->title));
+            if (is_self(c, self_vol, self_path))
+                hide_self(e);
         } else {
             e->kind = KIND_FIRMWARE;
             str_copy(e->title, c->nvram_desc && *c->nvram_desc ? c->nvram_desc : "Firmware entry", sizeof(e->title));
