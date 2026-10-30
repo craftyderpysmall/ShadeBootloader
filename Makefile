@@ -53,6 +53,23 @@ all: $(TARGET)
 $(TARGET): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
 
+# Fail early with a useful message instead of "clang: No such file".
+MISSING_TOOLS := $(strip $(foreach t,$(CC) lld-link $(PYTHON),$(if $(shell command -v $(t) 2>/dev/null),,$(t))))
+# (only when building: `make clean` / `make test` don't need the cross toolchain)
+ifneq ($(MISSING_TOOLS),)
+ifneq ($(if $(MAKECMDGOALS),$(filter-out clean test,$(MAKECMDGOALS)),all),)
+$(OBJ): toolcheck
+endif
+endif
+.PHONY: toolcheck
+toolcheck:
+	@echo "Missing build tools: $(MISSING_TOOLS)"
+	@echo "Either build inside the devcontainer (VS Code terminal), or install them:"
+	@echo "  Arch:          sudo pacman -S clang lld python"
+	@echo "  Debian/Ubuntu: sudo apt install clang lld python3"
+	@echo "  Fedora:        sudo dnf install clang lld python3"
+	@exit 1
+
 $(BUILD)/obj/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@

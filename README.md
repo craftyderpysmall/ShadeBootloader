@@ -66,9 +66,15 @@ whose logins persist in named volumes across rebuilds.
 
 ## Install
 
+Build inside the devcontainer (VS Code's terminal), where the toolchain
+lives. The project folder is shared with your machine, so then run the
+installer from a terminal on your machine itself; it needs your real ESP
+and firmware, which the container can't reach. To build on your machine
+instead, install `clang`, `lld` and `python3` first.
+
 ```sh
-make
-sudo tools/install.sh              # or: tools/install.sh --dry-run to see what it would do
+make                               # in the devcontainer
+sudo tools/install.sh              # on your machine; --dry-run shows what it would do
 ```
 
 This copies Shade to `\EFI\shade\shadex64.efi` with the themes and a default
