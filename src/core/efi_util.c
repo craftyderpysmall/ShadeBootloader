@@ -129,6 +129,8 @@ EFI_FILE_INFO *file_info(EFI_FILE_PROTOCOL *f)
     return info;
 }
 
+#define FILE_CHUNK (1024 * 1024)
+
 void *file_read_all(EFI_FILE_PROTOCOL *root, const char *path, size_t *size)
 {
     EFI_FILE_PROTOCOL *f = file_open(root, path);
@@ -140,12 +142,19 @@ void *file_read_all(EFI_FILE_PROTOCOL *root, const char *path, size_t *size)
         f->Close(f);
         return NULL;
     }
-    UINTN n = info->FileSize;
+    UINTN n = info->FileSize, got = 0;
     free(info);
     uint8_t *buf = malloc(n + 2);
-    if (buf && f->Read(f, &n, buf) != EFI_SUCCESS) {
-        free(buf);
-        buf = NULL;
+    /* in pieces: a kernel image is too much for one firmware read on some boards */
+    while (buf && got < n) {
+        UINTN chunk = n - got < FILE_CHUNK ? n - got : FILE_CHUNK;
+        if (f->Read(f, &chunk, buf + got) != EFI_SUCCESS) {
+            free(buf);
+            buf = NULL;
+        } else if (!chunk) {
+            n = got;
+        }
+        got += chunk;
     }
     f->Close(f);
     if (buf) {

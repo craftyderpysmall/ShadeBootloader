@@ -19,6 +19,25 @@ static const char *status_text(EFI_STATUS st)
     }
 }
 
+/* TEMPORARY: how far the last boots got, readable from Linux after a hang.
+ * The recovery boot would overwrite the failed one, so keep one previous. */
+static void trace_rotate(void)
+{
+    size_t n = 0;
+    char *old = var_get("ShadeTrace", &gShadeVarGuid, &n);
+    if (old) {
+        var_set("ShadeTracePrev", &gShadeVarGuid, old, n, true);
+        free(old);
+    }
+}
+
+static void trace(const char *stage, const Entry *e)
+{
+    char s[96];
+    str_fmt(s, sizeof(s), "%s %s", stage, e->path);
+    var_set("ShadeTrace", &gShadeVarGuid, s, strlen(s) + 1, true);
+}
+
 bool boot_entry(const BootSet *b, const Entry *e, char *err, int cap)
 {
     err[0] = 0;
@@ -37,12 +56,25 @@ bool boot_entry(const BootSet *b, const Entry *e, char *err, int cap)
         return false;
     }
 
+    trace_rotate();
+    trace("read", e);
+    /* Read it ourselves and load from memory, as GRUB does. If that fails the
+     * firmware gets to try the path and report why. */
+    size_t size = 0;
+    void *src = NULL;
+    EFI_FILE_PROTOCOL *root = vol_open_root(b->vols[e->vol].handle);
+    if (root) {
+        src = file_read_all(root, e->path, &size);
+        root->Close(root);
+    }
+    trace("load", e);
     EFI_DEVICE_PATH *dp = dp_append_file(dp_of(b->vols[e->vol].handle), e->path);
     EFI_HANDLE image = NULL;
-    EFI_STATUS st = gBS->LoadImage(FALSE, gImage, dp, NULL, 0, &image);
-    free(dp);
-    LOG("boot: LoadImage %s -> %llx", e->path, st);
+    EFI_STATUS st = gBS->LoadImage(FALSE, gImage, dp, src, size, &image);
+    free(src);
+    LOG("boot: LoadImage %s (%llu bytes) -> %llx", e->path, (uint64_t)size, st);
     if (EFI_ERROR(st)) {
+        free(dp);
         /* on a Secure Boot rejection the image is loaded anyway and must be freed */
         if (image)
             gBS->UnloadImage(image);
@@ -64,9 +96,11 @@ bool boot_entry(const BootSet *b, const Entry *e, char *err, int cap)
         }
     }
 
+    trace("start", e);
     st = gBS->StartImage(image, NULL, NULL);
     LOG("boot: StartImage returned %llx", st);
     free(opts);
+    free(dp);
     if (EFI_ERROR(st)) {
         str_fmt(err, cap, "%s exited with an error", e->title);
         return false;
